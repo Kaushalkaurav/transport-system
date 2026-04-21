@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Vehicles | Transport System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="app-layout">
+
+<aside class="sidebar">
+    <h2>Transport System</h2>
+    <nav>
+        <a href="/dashboard.html">Dashboard</a>
+        <a href="/addvehicle.html">Add Vehicle</a>
+        <a href="/view_vehicles.html" class="active">View Vehicles</a>
+        <a href="/drivers.html">Drivers</a>
+        <a href="/trips.html">Trips</a>
+        <a href="/maintenance.html">Maintenance</a>
+    </nav>
+</aside>
+
+<main class="main-content">
+    <div class="header-title" style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <h1>Vehicle List</h1>
+            <p>Manage all registered vehicles</p>
+        </div>
+        <button onclick="exportCSV()" class="btn-primary" style="width: auto; margin-top: 0; padding: 10px 20px;">Export CSV</button>
+    </div>
+
+    <div class="card">
+        <input type="text" id="search" onkeyup="renderTable()" placeholder="Search by ID or Brand..." style="max-width: 300px; margin-bottom: 20px;">
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Type</th>
+                    <th>Brand</th>
+                    <th>Model</th>
+                    <th>Owner</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="data"></tbody>
+        </table>
+
+        <!-- Pagination Controls -->
+        <div style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center;">
+            <span id="page-info" style="color: #64748b; font-size: 14px;"></span>
+            <div>
+                <button onclick="prevPage()" class="btn-primary" style="width:auto; margin:0; padding: 8px 16px; background:#e2e8f0; color:#0f172a;" id="btn-prev">Prev</button>
+                <button onclick="nextPage()" class="btn-primary" style="width:auto; margin:0; padding: 8px 16px; background:#e2e8f0; color:#0f172a;" id="btn-next">Next</button>
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- Edit Modal -->
+<div id="edit-modal" class="modal-overlay hidden">
+    <div class="card" style="width: 400px;">
+        <h3 style="margin-bottom: 20px;">Edit Vehicle</h3>
+        <input type="hidden" id="edit-id">
+        <div class="form-group"><label>Type</label><input type="text" id="edit-type"></div>
+        <div class="form-group"><label>Brand</label><input type="text" id="edit-brand"></div>
+        <div class="form-group"><label>Model</label><input type="text" id="edit-model"></div>
+        <div class="form-group"><label>Owner</label><input type="text" id="edit-owner"></div>
+        <div style="display: flex; gap: 10px;">
+            <button onclick="saveEdit()" class="btn-primary">Save Changes</button>
+            <button onclick="closeModal()" class="btn-primary" style="background:#e2e8f0; color:#0f172a;">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let allVehicles = [];
+let currentPage = 1;
+const itemsPerPage = 5;
+
+function loadVehicles() {
+    fetch('/vehicles').then(r => r.json()).then(data => {
+        allVehicles = data;
+        renderTable();
+    });
+}
+
+function renderTable() {
+    const search = document.getElementById('search').value.toLowerCase();
+    const filtered = allVehicles.filter(v => 
+        v.vehicle_id.toString().includes(search) || 
+        v.brand.toLowerCase().includes(search)
+    );
+
+    const totalPages = Math.ceil(filtered.length / itemsPerPage);
+    if(currentPage > totalPages) currentPage = totalPages || 1;
+
+    const start = (currentPage - 1) * itemsPerPage;
+    const paginated = filtered.slice(start, start + itemsPerPage);
+
+    const tbody = document.getElementById('data');
+    if (paginated.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No vehicles found.</td></tr>';
+    } else {
+        tbody.innerHTML = paginated.map(v => `
+            <tr>
+                <td>#${v.vehicle_id}</td>
+                <td><strong>${v.type}</strong></td>
+                <td>${v.brand}</td>
+                <td>${v.model}</td>
+                <td>${v.owner_name}</td>
+                <td>
+                    <button class="btn-edit" onclick="openEdit(${v.vehicle_id}, '${v.type}', '${v.brand}', '${v.model}', '${v.owner_name}')">Edit</button>
+                    <button class="btn-delete" onclick="deleteVehicle(${v.vehicle_id})">Remove</button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    document.getElementById('page-info').innerText = `Page ${currentPage} of ${totalPages || 1}`;
+    document.getElementById('btn-prev').disabled = currentPage === 1;
+    document.getElementById('btn-next').disabled = currentPage === totalPages || totalPages === 0;
+}
+
+function prevPage() { if(currentPage > 1) { currentPage--; renderTable(); } }
+function nextPage() { currentPage++; renderTable(); }
+
+function deleteVehicle(id) {
+    if(confirm('Remove this vehicle?')) {
+        fetch(`/vehicles/${id}`, { method: 'DELETE' }).then(loadVehicles);
+    }
+}
+
+function openEdit(id, type, brand, model, owner) {
+    document.getElementById('edit-id').value = id;
+    document.getElementById('edit-type').value = type;
+    document.getElementById('edit-brand').value = brand;
+    document.getElementById('edit-model').value = model;
+    document.getElementById('edit-owner').value = owner;
+    document.getElementById('edit-modal').classList.remove('hidden');
+}
+
+function closeModal() {
+    document.getElementById('edit-modal').classList.add('hidden');
+}
+
+function saveEdit() {
+    const id = document.getElementById('edit-id').value;
+    const type = document.getElementById('edit-type').value;
+    const brand = document.getElementById('edit-brand').value;
+    const model = document.getElementById('edit-model').value;
+    const owner_name = document.getElementById('edit-owner').value;
+
+    fetch(`/vehicles/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, brand, model, owner_name })
+    }).then(() => {
+        closeModal();
+        loadVehicles();
+    });
+}
+
+function exportCSV() {
+    let csvContent = "data:text/csv;charset=utf-8,ID,Type,Brand,Model,Owner\n";
+    allVehicles.forEach(v => {
+        csvContent += `${v.vehicle_id},${v.type},${v.brand},${v.model},${v.owner_name}\n`;
+    });
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "vehicles.csv");
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+}
+
+window.onload = loadVehicles;
+</script>
+</body>
+</html>

@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maintenance | Transport System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="app-layout">
+
+<aside class="sidebar">
+    <h2>Transport System</h2>
+    <nav>
+        <a href="/dashboard.html">Dashboard</a>
+        <a href="/addvehicle.html">Add Vehicle</a>
+        <a href="/view_vehicles.html">View Vehicles</a>
+        <a href="/drivers.html">Drivers</a>
+        <a href="/trips.html">Trips</a>
+        <a href="/maintenance.html" class="active">Maintenance</a>
+    </nav>
+</aside>
+
+<main class="main-content">
+    <div class="header-title">
+        <h1>Maintenance Logs</h1>
+    </div>
+
+    <div class="card" style="margin-bottom: 30px;">
+        <h3>Log Service</h3>
+        <div style="display: flex; gap: 15px; margin-top: 15px; flex-wrap: wrap;">
+            <select id="vehicle_id" style="padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1;"></select>
+            <input type="date" id="date">
+            <input type="text" id="desc" placeholder="Description of Work" style="flex: 1;">
+            <input type="number" id="cost" placeholder="Cost (rupey)" style="width: 120px;">
+            <button class="btn-primary" style="margin-top: 0; width: auto; padding: 0 20px;" onclick="addLog()">Log</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <table id="logs-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Vehicle</th>
+                    <th>Description</th>
+                    <th>Cost</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="logs-data"></tbody>
+        </table>
+    </div>
+</main>
+
+<script>
+function loadOptions() {
+    fetch('/vehicles').then(r => r.json()).then(v => {
+        document.getElementById('vehicle_id').innerHTML = '<option value="">Select Vehicle</option>' + v.map(x => `<option value="${x.vehicle_id}">${x.brand} ${x.model}</option>`).join('');
+    });
+}
+
+function loadLogs() {
+    fetch('/maintenance').then(r => r.json()).then(data => {
+        const tbody = document.getElementById('logs-data');
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No maintenance logs.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = data.map(l => {
+            const date = new Date(l.service_date).toLocaleDateString();
+            return `
+            <tr>
+                <td>${date}</td>
+                <td>${l.brand} ${l.model}</td>
+                <td>${l.description}</td>
+                <td>${l.cost}</td>
+                <td>
+                    <button class="btn-delete" onclick="deleteLog(${l.log_id})">Remove</button>
+                </td>
+            </tr>`;
+        }).join('');
+    });
+}
+
+function addLog() {
+    const vehicle_id = document.getElementById('vehicle_id').value;
+    const service_date = document.getElementById('date').value;
+    const description = document.getElementById('desc').value;
+    const cost = document.getElementById('cost').value;
+
+    if (!vehicle_id || !service_date || !description || !cost) return alert("Fill all fields");
+
+    fetch('/maintenance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vehicle_id, service_date, description, cost })
+    }).then(() => {
+        document.getElementById('date').value = '';
+        document.getElementById('desc').value = '';
+        document.getElementById('cost').value = '';
+        loadLogs();
+    });
+}
+
+function deleteLog(id) {
+    if (confirm("Remove log?")) {
+        fetch(`/maintenance/${id}`, { method: 'DELETE' }).then(loadLogs);
+    }
+}
+
+window.onload = () => { loadOptions(); loadLogs(); };
+</script>
+</body>
+</html>

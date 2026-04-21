@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trips | Transport System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="app-layout">
+
+<aside class="sidebar">
+    <h2>Transport System</h2>
+    <nav>
+        <a href="/dashboard.html">Dashboard</a>
+        <a href="/addvehicle.html">Add Vehicle</a>
+        <a href="/view_vehicles.html">View Vehicles</a>
+        <a href="/drivers.html">Drivers</a>
+        <a href="/trips.html" class="active">Trips</a>
+        <a href="/maintenance.html">Maintenance</a>
+    </nav>
+</aside>
+
+<main class="main-content">
+    <div class="header-title">
+        <h1>Trips Management</h1>
+    </div>
+
+    <div class="card" style="margin-bottom: 30px;">
+        <h3>Create New Trip</h3>
+        <div style="display: flex; gap: 15px; margin-top: 15px; flex-wrap: wrap;">
+            <select id="vehicle_id" style="padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1;"></select>
+            <select id="driver_id" style="padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1;"></select>
+            <input type="text" id="start" placeholder="Start Location">
+            <input type="text" id="dest" placeholder="Destination">
+            <button class="btn-primary" style="margin-top: 0; width: auto; padding: 0 20px;" onclick="addTrip()">Assign</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <table id="trips-table">
+            <thead>
+                <tr>
+                    <th>Vehicle</th>
+                    <th>Driver</th>
+                    <th>Route</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="trips-data"></tbody>
+        </table>
+    </div>
+</main>
+
+<script>
+function loadOptions() {
+    fetch('/vehicles').then(r => r.json()).then(v => {
+        document.getElementById('vehicle_id').innerHTML = '<option value="">Select Vehicle</option>' + v.map(x => `<option value="${x.vehicle_id}">${x.brand} ${x.model}</option>`).join('');
+    });
+    fetch('/drivers').then(r => r.json()).then(d => {
+        document.getElementById('driver_id').innerHTML = '<option value="">Select Driver</option>' + d.map(x => `<option value="${x.driver_id}">${x.name}</option>`).join('');
+    });
+}
+
+function loadTrips() {
+    fetch('/trips').then(r => r.json()).then(data => {
+        const tbody = document.getElementById('trips-data');
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No trips found.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = data.map(t => `
+            <tr>
+                <td>${t.brand} ${t.model}</td>
+                <td>${t.driver_name}</td>
+                <td>${t.start_location} → ${t.destination}</td>
+                <td>
+                    <select onchange="updateStatus(${t.trip_id}, this.value)" style="padding: 5px; border-radius: 5px;">
+                        <option value="Pending" ${t.status==='Pending'?'selected':''}>Pending</option>
+                        <option value="In-Transit" ${t.status==='In-Transit'?'selected':''}>In-Transit</option>
+                        <option value="Completed" ${t.status==='Completed'?'selected':''}>Completed</option>
+                    </select>
+                </td>
+                <td>
+                    <button class="btn-delete" onclick="deleteTrip(${t.trip_id})">Remove</button>
+                </td>
+            </tr>
+        `).join('');
+    });
+}
+
+function addTrip() {
+    const vehicle_id = document.getElementById('vehicle_id').value;
+    const driver_id = document.getElementById('driver_id').value;
+    const start = document.getElementById('start').value;
+    const dest = document.getElementById('dest').value;
+
+    if (!vehicle_id || !driver_id || !start || !dest) return alert("Fill all fields");
+
+    fetch('/trips', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ vehicle_id, driver_id, start_location: start, destination: dest })
+    }).then(() => {
+        loadTrips();
+    });
+}
+
+function updateStatus(id, status) {
+    fetch(`/trips/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+    });
+}
+
+function deleteTrip(id) {
+    if (confirm("Remove trip?")) {
+        fetch(`/trips/${id}`, { method: 'DELETE' }).then(loadTrips);
+    }
+}
+
+window.onload = () => { loadOptions(); loadTrips(); };
+</script>
+</body>
+</html>

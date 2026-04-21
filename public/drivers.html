@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drivers | Transport System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="app-layout">
+
+<aside class="sidebar">
+    <h2>Transport System</h2>
+    <nav>
+        <a href="/dashboard.html">Dashboard</a>
+        <a href="/addvehicle.html">Add Vehicle</a>
+        <a href="/view_vehicles.html">View Vehicles</a>
+        <a href="/drivers.html" class="active">Drivers</a>
+        <a href="/trips.html">Trips</a>
+        <a href="/maintenance.html">Maintenance</a>
+    </nav>
+</aside>
+
+<main class="main-content">
+    <div class="header-title">
+        <h1>Drivers Management</h1>
+    </div>
+
+    <div class="card" style="margin-bottom: 30px;">
+        <h3>Add New Driver</h3>
+        <div style="display: flex; gap: 15px; margin-top: 15px;">
+            <input type="text" id="name" placeholder="Driver Name">
+            <input type="text" id="license" placeholder="License Number">
+            <input type="text" id="phone" placeholder="Phone Number">
+            <button class="btn-primary" style="margin-top: 0; width: auto; padding: 0 20px;" onclick="addDriver()">Add</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <table id="drivers-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>License</th>
+                    <th>Phone</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="drivers-data"></tbody>
+        </table>
+    </div>
+</main>
+
+<script>
+function loadDrivers() {
+    fetch('/drivers').then(r => r.json()).then(data => {
+        const tbody = document.getElementById('drivers-data');
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No drivers found.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = data.map(d => `
+            <tr>
+                <td>${d.name}</td>
+                <td>${d.license_number}</td>
+                <td>${d.phone}</td>
+                <td>
+                    <button class="btn-delete" onclick="deleteDriver(${d.driver_id})">Remove</button>
+                </td>
+            </tr>
+        `).join('');
+    });
+}
+
+function addDriver() {
+    const name = document.getElementById('name').value;
+    const license = document.getElementById('license').value;
+    const phone = document.getElementById('phone').value;
+    if (!name || !license) return alert("Fill required fields");
+
+    fetch('/drivers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, license_number: license, phone })
+    }).then(() => {
+        document.getElementById('name').value = '';
+        document.getElementById('license').value = '';
+        document.getElementById('phone').value = '';
+        loadDrivers();
+    });
+}
+
+function deleteDriver(id) {
+    if (confirm("Remove driver?")) {
+        fetch(`/drivers/${id}`, { method: 'DELETE' }).then(loadDrivers);
+    }
+}
+
+window.onload = loadDrivers;
+</script>
+</body>
+</html>
